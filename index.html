@@ -5,7 +5,7 @@
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>할로윈 방탈출: 어둠 속의 랜턴 (Mobile & PC)</title>
+    <title>할로윈 방탈출: 어둠 속의 랜턴 (Mobile Touch Fix)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -13,7 +13,6 @@
         padding: 0;
         user-select: none;
         -webkit-user-select: none;
-        touch-action: none; /* 터치 스크롤 방지 */
       }
       body {
         background-color: #030206;
@@ -29,6 +28,7 @@
         height: 100vh;
         width: 100vw;
         overflow: hidden;
+        position: fixed; /* 모바일 바운스 스크롤 방지 */
       }
       #game-container {
         position: relative;
@@ -40,6 +40,7 @@
         box-shadow: 0 0 40px rgba(110, 20, 160, 0.4);
         overflow: hidden;
         background: #000;
+        touch-action: none; /* 터치 스크롤 및 확대 원천 차단 */
       }
 
       /* 으스스한 배경 연출 */
@@ -74,13 +75,11 @@
         background: rgba(255, 153, 0, 0.05);
         border-radius: 6px;
         z-index: 5;
-        transition: background 0.2s;
+        cursor: pointer;
       }
-      .inspect-point:active,
-      .inspect-point:hover {
-        background: rgba(255, 153, 0, 0.35);
-        border-color: rgba(255, 215, 0, 0.9);
-        box-shadow: 0 0 15px rgba(255, 153, 0, 0.6);
+      .inspect-point:active {
+        background: rgba(255, 153, 0, 0.4);
+        border-color: rgba(255, 215, 0, 1);
       }
 
       #flashlight-canvas {
@@ -164,7 +163,6 @@
         align-items: center;
         font-size: 20px;
         cursor: pointer;
-        transition: all 0.2s;
       }
       .inv-slot.has-item {
         border-color: #ff9800;
@@ -191,7 +189,7 @@
         align-items: center;
         text-align: center;
         padding: 20px;
-        touch-action: auto;
+        pointer-events: auto;
       }
       .screen h1 {
         font-size: 28px;
@@ -215,15 +213,12 @@
         font-weight: bold;
         border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s;
-        touch-action: manipulation;
       }
       .btn:active {
         background: #8e24aa;
-        transform: scale(0.98);
       }
 
-      /* 금고 모달 (모바일 최적화) */
+      /* 금고 모달 */
       #safe-modal {
         position: absolute;
         top: 50%;
@@ -238,7 +233,7 @@
         display: none;
         text-align: center;
         box-shadow: 0 0 35px rgba(0, 0, 0, 0.9);
-        touch-action: manipulation;
+        pointer-events: auto;
       }
       #safe-display {
         width: 100%;
@@ -268,9 +263,6 @@
         font-weight: bold;
         border-radius: 6px;
         cursor: pointer;
-      }
-      .keypad button:active {
-        background: #382a50;
       }
 
       #message-box {
@@ -314,7 +306,7 @@
     <div id="game-container">
       <div class="room-bg"></div>
 
-      <!-- 방 분위기 오브젝트 (상대 비율 % 위치) -->
+      <!-- 방 분위기 오브젝트 -->
       <div class="room-object" style="top: 5%; left: 39%; font-size: 40px">
         🖼️
       </div>
@@ -355,7 +347,7 @@
         🕯️
       </div>
 
-      <!-- 16개 조사 인터랙션 포인트 -->
+      <!-- 16개 조사 포인트 -->
       <div
         class="inspect-point"
         style="top: 5%; left: 38%; width: 8%; height: 12%"
@@ -497,8 +489,8 @@
       <div id="start-screen" class="screen">
         <h1>🎃 어둠 속의 랜턴 🎃</h1>
         <p>
-          화면을 터치하거나 문질러 랜턴 빛을 밝히세요.<br />16개 장소 중 무작위
-          위치에서 아이템을 찾아 현관 마스터키를 완성해야 합니다!
+          화면을 터치한 채 움직여 랜턴 빛을 밝히세요.<br />16개 장소 중 무작위
+          위치에서 아이템을 찾아 현관 마스터키를 완성하세요!
         </p>
         <button class="btn" onclick="startGame()">게임 시작</button>
       </div>
@@ -638,15 +630,17 @@
 
       const container = document.getElementById("game-container");
 
-      // 마우스 및 터치 좌표 업데이터
+      // ★ 모바일 터치 및 마우스 드래그 좌표 실시간 연동 강화 ★
       function updateCoordinates(e) {
         const rect = container.getBoundingClientRect();
-        let clientX = e.clientX;
-        let clientY = e.clientY;
+        let clientX, clientY;
 
         if (e.touches && e.touches.length > 0) {
           clientX = e.touches[0].clientX;
           clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
         }
 
         if (clientX !== undefined && clientY !== undefined) {
@@ -655,13 +649,21 @@
         }
       }
 
-      container.addEventListener("mousemove", updateCoordinates);
+      container.addEventListener("mousemove", updateCoordinates, {
+        passive: true,
+      });
       container.addEventListener("touchstart", updateCoordinates, {
         passive: true,
       });
-      container.addEventListener("touchmove", updateCoordinates, {
-        passive: true,
-      });
+      // passive: false를 주어야 모바일 기본 스크롤 에러 없이 랜턴 드래그가 매끄럽게 작동합니다.
+      container.addEventListener(
+        "touchmove",
+        (e) => {
+          updateCoordinates(e);
+          e.preventDefault();
+        },
+        { passive: false },
+      );
 
       function setupCanvas() {
         canvas = document.getElementById("flashlight-canvas");
@@ -673,6 +675,8 @@
       function resizeCanvas() {
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
+        lightX = canvas.width / 2;
+        lightY = canvas.height / 2;
       }
 
       function updateFlashlight() {
@@ -682,7 +686,7 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           let radius =
-            canvas.width * 0.12 + (battery / 100) * (canvas.width * 0.08);
+            canvas.width * 0.13 + (battery / 100) * (canvas.width * 0.08);
           ctx.globalCompositeOperation = "destination-out";
 
           let gradient = ctx.createRadialGradient(
@@ -711,10 +715,10 @@
             ctx.arc(lightX, lightY, radius, 0, Math.PI * 2);
             ctx.fill();
 
-            let wallX = canvas.width * 0.42;
-            let wallY = canvas.height * 0.25;
-            let wallW = canvas.width * 0.16;
-            let wallH = canvas.height * 0.14;
+            let wallX = canvas.width * 0.4;
+            let wallY = canvas.height * 0.23;
+            let wallW = canvas.width * 0.2;
+            let wallH = canvas.height * 0.16;
 
             if (
               lightX >= wallX &&
@@ -722,14 +726,14 @@
               lightY >= wallY &&
               lightY <= wallY + wallH
             ) {
-              let fontSize = Math.max(22, Math.floor(canvas.width * 0.038));
+              let fontSize = Math.max(22, Math.floor(canvas.width * 0.045));
               ctx.font = `bold ${fontSize}px monospace`;
               ctx.fillStyle = "#00ff66";
               ctx.shadowColor = "#00ff66";
               ctx.shadowBlur = 15;
               ctx.fillText(
                 safePassword,
-                canvas.width * 0.44,
+                canvas.width * 0.43,
                 canvas.height * 0.32,
               );
               ctx.shadowBlur = 0;
